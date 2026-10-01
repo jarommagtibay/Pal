@@ -1,0 +1,16 @@
+{
+  "name": "Pal",
+  "short_name": "Pal",
+  "description": "Share instantly across devices",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#007aff",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    }
+  ]
+}
