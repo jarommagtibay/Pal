@@ -9,8 +9,9 @@ export function renderSession() {
   container.innerHTML = `
     <div id="history-panel" class="history-panel"></div>
     <div class="chat-input card" style="margin-bottom:0;">
-      <input type="file" id="file-input" style="display:none">
-      <button id="btn-attach" class="secondary" style="width:50px; padding: 14px 0;">📎</button>
+      <input type="file" id="file-input" style="display:none" multiple>
+      <button id="btn-attach" class="secondary" style="width:50px; padding: 14px 0;" title="Attach File">📎</button>
+      <button id="btn-clipboard" class="secondary" style="width:50px; padding: 14px 0;" title="Send Clipboard">📋</button>
       <input type="text" id="text-input" placeholder="Type a message or paste a link..." autocomplete="off">
       <button id="btn-send" style="width:80px;">Send</button>
     </div>
@@ -21,6 +22,7 @@ export function renderSession() {
   const fileInput = container.querySelector('#file-input');
   const btnSend = container.querySelector('#btn-send');
   const btnAttach = container.querySelector('#btn-attach');
+  const btnClipboard = container.querySelector('#btn-clipboard');
 
   // Helper: Append to history
   function appendHistory(html, isSent) {
@@ -52,9 +54,14 @@ export function renderSession() {
   // Handle sending files
   btnAttach.addEventListener('click', () => fileInput.click());
   fileInput.addEventListener('change', async () => {
-    const file = fileInput.files[0];
-    if (!file) return;
+    if (fileInput.files.length === 0) return;
+    for (const file of fileInput.files) {
+      await sendSingleFile(file);
+    }
+    fileInput.value = '';
+  });
 
+  async function sendSingleFile(file) {
     const id = crypto.randomUUID();
     const item = appendHistory(`
       <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -65,7 +72,20 @@ export function renderSession() {
 
     await fileTransfer.sendFile(file, id);
     item.querySelector(`#prog-${id}`).textContent = 'Sent ✓';
-    fileInput.value = '';
+  }
+
+  // Handle Clipboard
+  btnClipboard.addEventListener('click', async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text) return;
+      const msg = { type: 'text', content: text };
+      if (webrtc.sendData(JSON.stringify(msg))) {
+        appendHistory(`<div>📋 ${escapeHTML(text)}</div>`, true);
+      }
+    } catch (err) {
+      alert('Could not read clipboard. Please make sure you have granted permission.');
+    }
   });
 
   // Drag and drop for files
@@ -73,16 +93,9 @@ export function renderSession() {
   container.addEventListener('drop', async (e) => {
     e.preventDefault();
     if (e.dataTransfer.files.length > 0) {
-      const file = e.dataTransfer.files[0];
-      const id = crypto.randomUUID();
-      const item = appendHistory(`
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <div>📄 ${escapeHTML(file.name)} <br><small>${formatBytes(file.size)}</small></div>
-          <div id="prog-${id}">0%</div>
-        </div>
-      `, true);
-      await fileTransfer.sendFile(file, id);
-      item.querySelector(`#prog-${id}`).textContent = 'Sent ✓';
+      for (const file of e.dataTransfer.files) {
+        await sendSingleFile(file);
+      }
     }
   });
 

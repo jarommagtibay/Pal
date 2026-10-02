@@ -12,6 +12,9 @@ export async function joinSession(code) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ code })
   });
-  if (!res.ok) throw new Error('Invalid or expired code');
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Connection failed');
+  }
   return res.json();
 }

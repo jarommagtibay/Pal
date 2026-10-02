@@ -36,7 +36,15 @@ export function renderPhone() {
         const { sessionId } = await joinSession(code);
         setupConnection(sessionId, false); // false = not initiator (answers)
       } catch (e) {
-        alert(e.message);
+        let errDiv = container.querySelector('#error-msg');
+        if (!errDiv) {
+          errDiv = document.createElement('div');
+          errDiv.id = 'error-msg';
+          errDiv.style.color = 'var(--error)';
+          errDiv.style.marginTop = '12px';
+          container.querySelector('.card').appendChild(errDiv);
+        }
+        errDiv.textContent = e.message;
         btn.disabled = false;
         btn.textContent = 'Join Session';
       }

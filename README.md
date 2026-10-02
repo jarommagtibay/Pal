@@ -8,6 +8,21 @@ A fast, lightweight web application for sharing text, links, and files instantly
 - **File & Text Sharing:** Send text and links with instant copy buttons, or attach files to send back and forth with real-time progress indicators.
 - **Installable PWA:** Pal can be installed to your device's home screen or desktop as a Progressive Web App for a native-like experience.
 
+## Roadmap
+
+### v1.1
+- **Better Errors:** Clear messages for common problems like "Code expired", "Wrong code", and connection issues.
+- **Dark Mode:** Support for device settings via CSS `prefers-color-scheme`.
+- **Device Names:** Display friendly device names (e.g., "Jarom's Phone") instead of generic statuses.
+- **Clipboard Sync Button:** A manual "Send my clipboard" button to easily transfer clipboard contents.
+- **Multiple Files:** Select or drop several files to send sequentially with individual progress tracking.
+- **Auto-reconnect:** Automatically attempt to reconnect if the connection drops due to screen locks or network blips.
+
+### Future Versions
+- **v1.2:** Remember paired devices to avoid re-scanning each time.
+- **v1.3:** Connect across different networks using a TURN server.
+- **v2.0:** Android companion app for notifications.
+
 ## Tech Stack
 - **Backend:** Spring Boot (Java 21) handling REST API pairing and raw WebSocket signaling.
 - **Frontend:** Vite SPA (Vanilla JS) using WebRTC for peer-to-peer data transfers.

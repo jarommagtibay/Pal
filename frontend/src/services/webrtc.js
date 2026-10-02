@@ -16,8 +16,24 @@ const ICE_SERVERS = {
   ]
 };
 
-export function setupConnection(sessionId, isInitiator) {
-  updateStatus('Connecting...', 'connecting');
+let currentSessionId = null;
+let currentIsInitiator = false;
+let reconnectAttempts = 0;
+let isReconnecting = false;
+const MAX_RECONNECT = 5;
+
+export function setupConnection(sessionId, isInitiator, isReconnect = false) {
+  currentSessionId = sessionId;
+  currentIsInitiator = isInitiator;
+  
+  if (isReconnect) {
+    updateStatus('Reconnecting...', 'warning');
+    isReconnecting = true;
+  } else {
+    updateStatus('Connecting...', 'connecting');
+    reconnectAttempts = 0;
+    isReconnecting = false;
+  }
   
   peerConnection = new RTCPeerConnection(ICE_SERVERS);
   
@@ -59,6 +75,13 @@ export function setupConnection(sessionId, isInitiator) {
     }
   };
 
+  peerConnection.oniceconnectionstatechange = () => {
+    if (peerConnection.iceConnectionState === 'failed') {
+      updateStatus("Devices couldn't connect. Try the same Wi-Fi.", 'disconnected');
+      if (onDataChannelClose) onDataChannelClose();
+    }
+  };
+
   if (isInitiator) {
     dataChannel = peerConnection.createDataChannel('pal-transfer');
     setupDataChannel();
@@ -76,11 +99,31 @@ async function createOffer() {
   signalSocket.send({ type: 'OFFER', offer });
 }
 
+function getDeviceName() {
+  let name = localStorage.getItem('pal_device_name');
+  if (!name) {
+    const isMobile = /Mobile|Android|iP(ad|hone)/i.test(navigator.userAgent);
+    name = isMobile ? 'Phone' : 'PC';
+    localStorage.setItem('pal_device_name', name);
+  }
+  return name;
+}
+
+export function updateDeviceName(newName) {
+  localStorage.setItem('pal_device_name', newName);
+  if (dataChannel && dataChannel.readyState === 'open') {
+    dataChannel.send(JSON.stringify({ type: 'DEVICE_INFO', name: newName }));
+  }
+}
+
 function setupDataChannel() {
   dataChannel.binaryType = 'arraybuffer';
   
   dataChannel.onopen = () => {
+    reconnectAttempts = 0;
+    isReconnecting = false;
     updateStatus('Connected ✓', 'connected');
+    dataChannel.send(JSON.stringify({ type: 'DEVICE_INFO', name: getDeviceName() }));
     navigate('/session');
     if (onDataChannelOpen) onDataChannelOpen();
   };
@@ -90,14 +133,31 @@ function setupDataChannel() {
   };
   
   dataChannel.onmessage = (event) => {
+    if (typeof event.data === 'string') {
+      try {
+        const msg = JSON.parse(event.data);
+        if (msg.type === 'DEVICE_INFO') {
+          updateStatus('Connected to ' + msg.name, 'connected');
+          return;
+        }
+      } catch (e) {}
+    }
     if (onMessageReceived) onMessageReceived(event.data);
   };
 }
 
 function handleDisconnect() {
-  updateStatus('Disconnected ✗', 'disconnected');
-  if (onDataChannelClose) onDataChannelClose();
-  cleanup();
+  if (reconnectAttempts < MAX_RECONNECT) {
+    reconnectAttempts++;
+    cleanup();
+    setTimeout(() => {
+      setupConnection(currentSessionId, currentIsInitiator, true);
+    }, 2000);
+  } else {
+    updateStatus('Disconnected ✗', 'disconnected');
+    if (onDataChannelClose) onDataChannelClose();
+    cleanup();
+  }
 }
 
 export function sendData(data) {

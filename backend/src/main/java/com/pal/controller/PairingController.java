@@ -30,16 +30,16 @@ public class PairingController {
     public ResponseEntity<Map<String, String>> joinPairing(@RequestBody Map<String, String> request) {
         String code = request.get("code");
         if (code == null || code.isBlank()) {
-            return ResponseEntity.badRequest().build();
+            return ResponseEntity.badRequest().body(Map.of("error", "Code is required"));
         }
         
-        PairSession session = pairingService.joinSession(code);
-        if (session == null) {
-            return ResponseEntity.status(404).body(Map.of("error", "Invalid or expired code"));
+        try {
+            PairSession session = pairingService.joinSession(code);
+            return ResponseEntity.ok(Map.of("sessionId", session.getSessionId()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.status(404).body(Map.of("error", e.getMessage()));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(410).body(Map.of("error", e.getMessage()));
         }
-        
-        return ResponseEntity.ok(Map.of(
-                "sessionId", session.getSessionId()
-        ));
     }
 }

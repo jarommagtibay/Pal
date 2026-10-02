@@ -35,11 +35,17 @@ public class PairingService {
         String normalized = code.toUpperCase().trim();
         String sessionId = codeToSessionId.get(normalized);
         if (sessionId == null) {
-            return null;
+            throw new IllegalArgumentException("Wrong code");
         }
         PairSession session = sessions.get(sessionId);
-        if (session == null || session.getStatus() != PairSession.Status.WAITING) {
-            return null;
+        if (session == null) {
+            throw new IllegalArgumentException("Wrong code");
+        }
+        if (session.getStatus() == PairSession.Status.EXPIRED) {
+            throw new IllegalStateException("Code expired");
+        }
+        if (session.getStatus() != PairSession.Status.WAITING) {
+            throw new IllegalStateException("Code already used");
         }
         session.setStatus(PairSession.Status.PAIRED);
         return session;
@@ -52,11 +58,15 @@ public class PairingService {
     @Scheduled(fixedRate = 30_000)
     public void expireOldSessions() {
         Instant cutoff = Instant.now().minus(EXPIRY);
+        Instant purgeCutoff = Instant.now().minus(Duration.ofMinutes(60));
         sessions.entrySet().removeIf(entry -> {
             PairSession s = entry.getValue();
-            if (s.getCreatedAt().isBefore(cutoff)) {
+            if (s.getCreatedAt().isBefore(purgeCutoff)) {
                 codeToSessionId.remove(s.getCode());
                 return true;
+            }
+            if (s.getCreatedAt().isBefore(cutoff) && s.getStatus() == PairSession.Status.WAITING) {
+                s.setStatus(PairSession.Status.EXPIRED);
             }
             return false;
         });
